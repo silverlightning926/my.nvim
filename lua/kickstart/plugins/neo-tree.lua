@@ -100,5 +100,30 @@ return {
         end
       end,
     })
+
+    -- Auto-quit when only Neo-tree is left
+    vim.api.nvim_create_autocmd({ 'BufDelete', 'WinClosed' }, {
+      callback = function()
+        -- Use vim.schedule to ensure the window/buffer state is updated
+        vim.schedule(function()
+          local windows = vim.api.nvim_list_wins()
+          local non_neotree_windows = {}
+
+          for _, win in ipairs(windows) do
+            local buf = vim.api.nvim_win_get_buf(win)
+            local filetype = vim.api.nvim_buf_get_option(buf, 'filetype')
+
+            if filetype ~= 'neo-tree' then
+              table.insert(non_neotree_windows, win)
+            end
+          end
+
+          -- If no non-neo-tree windows remain, quit Neovim
+          if #non_neotree_windows == 0 and #windows > 0 then
+            vim.cmd 'quit'
+          end
+        end)
+      end,
+    })
   end,
 }
