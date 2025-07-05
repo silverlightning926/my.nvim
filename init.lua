@@ -426,16 +426,11 @@ require('lazy').setup({
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
-      vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
-      vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
       vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
-      vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
-      vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
-      vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
 
       -- Slightly advanced example of overriding default behavior and theme
       vim.keymap.set('n', '<leader>/', function()
@@ -459,6 +454,50 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sn', function()
         builtin.find_files { cwd = vim.fn.stdpath 'config' }
       end, { desc = '[S]earch [N]eovim files' })
+
+      local function remove_file()
+        local builtin = require 'telescope.builtin'
+        local actions = require 'telescope.actions'
+        local action_state = require 'telescope.actions.state'
+
+        builtin.find_files {
+          prompt_title = 'Remove File',
+          attach_mappings = function(prompt_bufnr, map)
+            actions.select_default:replace(function()
+              local selection = action_state.get_selected_entry()
+              if selection then
+                local file_path = selection.path or selection.value
+                actions.close(prompt_bufnr)
+
+                -- Confirm deletion
+                vim.ui.select({ 'Yes', 'No' }, {
+                  prompt = 'Delete ' .. file_path .. '?',
+                  format_item = function(item)
+                    return item
+                  end,
+                }, function(choice)
+                  if choice == 'Yes' then
+                    local success = os.remove(file_path)
+                    if success then
+                      print('Removed: ' .. file_path)
+                      -- Close buffer if it's open
+                      local buf = vim.fn.bufnr(file_path)
+                      if buf ~= -1 then
+                        vim.cmd('bdelete! ' .. buf)
+                      end
+                    else
+                      print('Failed to remove: ' .. file_path)
+                    end
+                  end
+                end)
+              end
+            end)
+            return true
+          end,
+        }
+      end
+
+      vim.keymap.set('n', '<leader>sr', remove_file, { desc = '[S]earch [R]emove file' })
     end,
   },
 
