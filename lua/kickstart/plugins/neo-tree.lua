@@ -69,23 +69,20 @@ return {
       },
     }
 
+    -- Simple, reliable startup behavior
     vim.api.nvim_create_autocmd('VimEnter', {
       callback = function()
+        -- Always show Neo-tree on startup
         vim.cmd 'Neotree show'
 
+        -- Always show Alpha dashboard on startup
         vim.defer_fn(function()
-          for _, win in ipairs(vim.api.nvim_list_wins()) do
-            local buf = vim.api.nvim_win_get_buf(win)
-            local filetype = vim.api.nvim_buf_get_option(buf, 'filetype')
-            if filetype ~= 'neo-tree' then
-              vim.api.nvim_set_current_win(win)
-              break
-            end
-          end
-        end, 50)
+          vim.cmd 'Alpha'
+        end, 100)
       end,
     })
 
+    -- Prevent focus from staying on Neo-tree when entering windows
     vim.api.nvim_create_autocmd('WinEnter', {
       callback = function()
         if vim.bo.filetype == 'neo-tree' then
@@ -104,7 +101,6 @@ return {
     -- Auto-quit when only Neo-tree is left
     vim.api.nvim_create_autocmd({ 'BufDelete', 'WinClosed' }, {
       callback = function()
-        -- Use vim.schedule to ensure the window/buffer state is updated
         vim.schedule(function()
           local windows = vim.api.nvim_list_wins()
           local non_neotree_windows = {}
