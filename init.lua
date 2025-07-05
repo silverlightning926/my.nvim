@@ -498,6 +498,129 @@ require('lazy').setup({
       end
 
       vim.keymap.set('n', '<leader>sr', remove_file, { desc = '[S]earch [R]emove file' })
+
+      local function create_file_in_directory()
+        local builtin = require 'telescope.builtin'
+        local actions = require 'telescope.actions'
+        local action_state = require 'telescope.actions.state'
+        local finders = require 'telescope.finders'
+        local pickers = require 'telescope.pickers'
+        local conf = require('telescope.config').values
+        local previewers = require 'telescope.previewers'
+
+        -- Create a custom picker for directories
+        pickers
+          .new({}, {
+            prompt_title = 'Select Directory to Create File',
+            finder = finders.new_oneshot_job({
+              'sh',
+              '-c',
+              'echo "./" && fd -t d',
+            }, {
+              entry_maker = function(entry)
+                return {
+                  value = entry,
+                  display = entry,
+                  ordinal = entry,
+                  path = entry,
+                }
+              end,
+            }),
+            sorter = conf.generic_sorter {},
+            previewer = previewers.new_buffer_previewer {
+              title = 'Directory Contents',
+              get_buffer_by_name = function(_, entry)
+                return entry.path
+              end,
+              define_preview = function(self, entry, status)
+                -- Sort directories first, then files
+                local cmd = {
+                  'sh',
+                  '-c',
+                  string.format(
+                    [[
+              cd "%s" || exit 1
+              
+              # Count directories and files
+              dir_count=$(find . -maxdepth 1 -type d -not -path . | wc -l)
+              file_count=$(find . -maxdepth 1 -type f | wc -l)
+              
+              # Show directories section
+              if [ "$dir_count" -gt 0 ]; then
+                echo "======== DIRECTORIES ========"
+                find . -maxdepth 1 -type d -not -path . | sort | sed 's|^\./||' | sed 's|$|/|'
+                echo ""
+              fi
+              
+              # Show files section
+              if [ "$file_count" -gt 0 ]; then
+                echo "========== FILES =========="
+                find . -maxdepth 1 -type f | sort | sed 's|^\./||' | while read -r file; do
+                  if [ -x "$file" ]; then
+                    echo "$file*"
+                  else
+                    echo "$file"
+                  fi
+                done
+              fi
+              
+              # Show symlinks if any
+              link_count=$(find . -maxdepth 1 -type l 2>/dev/null | wc -l)
+              if [ "$link_count" -gt 0 ]; then
+                echo ""
+                echo "========== LINKS =========="
+                find . -maxdepth 1 -type l | sort | sed 's|^\./||' | sed 's|$|@|'
+              fi
+            ]],
+                    entry.path
+                  ),
+                }
+                return require('telescope.previewers.utils').job_maker(cmd, self.state.bufnr, {
+                  value = entry.path,
+                  bufname = self.state.bufname,
+                })
+              end,
+            },
+            attach_mappings = function(prompt_bufnr, map)
+              actions.select_default:replace(function()
+                local selection = action_state.get_selected_entry()
+                if selection then
+                  local dir_path = selection.path or selection.value
+                  actions.close(prompt_bufnr)
+
+                  -- Ask for filename
+                  vim.ui.input({
+                    prompt = 'Enter filename: ',
+                    completion = 'file',
+                  }, function(filename)
+                    if filename and filename ~= '' then
+                      local file_path = dir_path .. '/' .. filename
+
+                      -- Create any necessary parent directories
+                      local parent_dir = vim.fn.fnamemodify(file_path, ':h')
+                      vim.fn.mkdir(parent_dir, 'p')
+
+                      -- Create the file
+                      local file = io.open(file_path, 'w')
+                      if file then
+                        file:close()
+                        -- Open the file in a new buffer
+                        vim.cmd('edit ' .. vim.fn.fnameescape(file_path))
+                        print('Created and opened: ' .. file_path)
+                      else
+                        print('Failed to create: ' .. file_path)
+                      end
+                    end
+                  end)
+                end
+              end)
+              return true
+            end,
+          })
+          :find()
+      end
+
+      vim.keymap.set('n', '<leader>sc', create_file_in_directory, { desc = '[S]earch [C]reate file' })
     end,
   },
 
