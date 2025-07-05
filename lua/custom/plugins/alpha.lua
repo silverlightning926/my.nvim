@@ -33,17 +33,17 @@ return {
     end
 
     dashboard.section.buttons.val = {
-      create_button('SPC s c', '󰈚', 'Create File', '<cmd>lua vim.api.nvim_feedkeys(" sc", "n", false)<CR>', 'AlphaButtonFile'),
-      create_button('SPC s r', '󰅖', 'Remove File', '<cmd>lua vim.api.nvim_feedkeys(" sr", "n", false)<CR>', 'AlphaButtonFile'),
+      create_button('SPC s c', '󰈚', '> Create File', '<cmd>lua vim.api.nvim_feedkeys(" sc", "n", false)<CR>', 'AlphaButtonFile'),
+      create_button('SPC s r', '󰅖', '> Remove File', '<cmd>lua vim.api.nvim_feedkeys(" sr", "n", false)<CR>', 'AlphaButtonFile'),
 
       { type = 'text', val = '', opts = { hl = 'AlphaButtons', position = 'center' } },
 
-      create_button('SPC s f', '󰈞', 'Find File', '<cmd>Telescope find_files<CR>', 'AlphaButtonSearch'),
-      create_button('SPC s g', '󰊄', 'Find Word', '<cmd>Telescope live_grep<CR>', 'AlphaButtonSearch'),
+      create_button('SPC s f', '󰈞', '> Find File', '<cmd>Telescope find_files<CR>', 'AlphaButtonSearch'),
+      create_button('SPC s g', '󰊄', '> Find Word', '<cmd>Telescope live_grep<CR>', 'AlphaButtonSearch'),
 
       { type = 'text', val = '', opts = { hl = 'AlphaButtons', position = 'center' } },
 
-      create_button('q', '󰅚', 'Quit NVIM', '<cmd>qa<CR>', 'AlphaButtonSystem'),
+      create_button('q', '󰅚', '> Quit NVIM', '<cmd>qa<CR>', 'AlphaButtonSystem'),
     }
 
     local header_padding = math.max(2, math.floor(vim.fn.winheight(0) * 0.15))
