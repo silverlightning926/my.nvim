@@ -1,144 +1,193 @@
 return {
-  'goolord/alpha-nvim',
-  dependencies = { 'nvim-tree/nvim-web-devicons' },
-  lazy = false,
-  config = function()
-    local alpha = require 'alpha'
-    local dashboard = require 'alpha.themes.dashboard'
+    'goolord/alpha-nvim',
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
+    lazy = false,
+    config = function()
+        local alpha = require 'alpha'
+        local dashboard = require 'alpha.themes.dashboard'
 
-    dashboard.section.header.val = {
-      '                                                     ',
-      '  ███╗   ██╗███████╗ ██████╗ ██╗   ██╗██╗███╗   ███╗ ',
-      '  ████╗  ██║██╔════╝██╔═══██╗██║   ██║██║████╗ ████║ ',
-      '  ██╔██╗ ██║█████╗  ██║   ██║██║   ██║██║██╔████╔██║ ',
-      '  ██║╚██╗██║██╔══╝  ██║   ██║╚██╗ ██╔╝██║██║╚██╔╝██║ ',
-      '  ██║ ╚████║███████╗╚██████╔╝ ╚████╔╝ ██║██║ ╚═╝ ██║ ',
-      '  ╚═╝  ╚═══╝╚══════╝ ╚═════╝   ╚═══╝  ╚═╝╚═╝     ╚═╝ ',
-      '                                                     ',
-    }
+        dashboard.section.header.val = {
+            '                                                     ',
+            '  ███╗   ██╗███████╗ ██████╗ ██╗   ██╗██║███╗   ███╗ ',
+            '  ████╗  ██║██╔════╝██╔═══██╗██║   ██║██║████╗ ████║ ',
+            '  ██╔██╗ ██║█████╗  ██║   ██║██║   ██║██║██╔████╔██║ ',
+            '  ██║╚██╗██║██╔══╝  ██║   ██║╚██╗ ██╔╝██║██║╚██╔╝██║ ',
+            '  ██║ ╚████║███████╗╚██████╔╝ ╚████╔╝ ██║██║ ╚═╝ ██║ ',
+            '  ╚═╝  ╚═══╝╚══════╝ ╚═════╝   ╚═══╝  ╚═╝╚═╝     ╚═╝ ',
+            '                                                     ',
+        }
 
-    local leader = vim.g.mapleader or ' '
-    local leader_display = leader == ' ' and 'SPC' or leader
+        local leader = vim.g.mapleader or ' '
+        local leader_display = leader == ' ' and 'SPC' or leader
 
-    local function create_button(key, icon, desc, cmd, color)
-      local display_key = key:find(leader_display) and key or (leader_display .. ' ' .. key)
-      local button_text = string.format('%s  %s', icon, desc)
-      local btn = dashboard.button(display_key, button_text, cmd)
+        local function create_button(key, icon, desc, color, command)
+            local display_key = key:find(leader_display) and key or (leader_display .. ' ' .. key)
+            local button_text = string.format('%s  %s', icon, desc)
+            -- Use actual command instead of empty string
+            local btn = dashboard.button(display_key, button_text, command or '')
 
-      if color then
-        btn.opts.hl = color
-      end
+            if color then
+                btn.opts.hl = color
+            end
 
-      return btn
-    end
+            return btn
+        end
 
-    dashboard.section.buttons.val = {
-      create_button('SPC s c', '󰈚', '> Create File', '<cmd>lua vim.api.nvim_feedkeys(" sc", "n", false)<CR>', 'AlphaButtonFile'),
-      create_button('SPC s r', '󰅖', '> Remove File', '<cmd>lua vim.api.nvim_feedkeys(" sr", "n", false)<CR>', 'AlphaButtonFile'),
+        -- Create file function
+        local function create_file_command()
+            return function()
+                local builtin = require 'telescope.builtin'
+                local actions = require 'telescope.actions'
+                local action_state = require 'telescope.actions.state'
+                local finders = require 'telescope.finders'
+                local pickers = require 'telescope.pickers'
+                local conf = require('telescope.config').values
 
-      { type = 'text', val = '', opts = { hl = 'AlphaButtons', position = 'center' } },
+                pickers.new({}, {
+                    prompt_title = 'Select Directory to Create File',
+                    finder = finders.new_oneshot_job({ 'find', '.', '-type', 'd' }, {
+                        entry_maker = function(entry)
+                            return {
+                                value = entry,
+                                display = entry,
+                                ordinal = entry,
+                                path = entry,
+                            }
+                        end,
+                    }),
+                    sorter = conf.generic_sorter {},
+                    attach_mappings = function(prompt_bufnr, map)
+                        actions.select_default:replace(function()
+                            local selection = action_state.get_selected_entry()
+                            if selection then
+                                local dir_path = selection.path or selection.value
+                                actions.close(prompt_bufnr)
+                                vim.ui.input({
+                                    prompt = 'Enter filename: ',
+                                    completion = 'file',
+                                }, function(filename)
+                                    if filename and filename ~= '' then
+                                        local file_path = dir_path .. '/' .. filename
+                                        local parent_dir = vim.fn.fnamemodify(file_path, ':h')
+                                        vim.fn.mkdir(parent_dir, 'p')
+                                        local file = io.open(file_path, 'w')
+                                        if file then
+                                            file:close()
+                                            vim.cmd('edit ' .. vim.fn.fnameescape(file_path))
+                                            print('Created and opened: ' .. file_path)
+                                        else
+                                            print('Failed to create: ' .. file_path)
+                                        end
+                                    end
+                                end)
+                            end
+                        end)
+                        return true
+                    end,
+                }):find()
+            end
+        end
 
-      create_button('SPC s f', '󰈞', '> Find File', '<cmd>Telescope find_files<CR>', 'AlphaButtonSearch'),
-      create_button('SPC s g', '󰊄', '> Find Word', '<cmd>Telescope live_grep<CR>', 'AlphaButtonSearch'),
+        -- Remove file function
+        local function remove_file_command()
+            return function()
+                local builtin = require 'telescope.builtin'
+                local actions = require 'telescope.actions'
+                local action_state = require 'telescope.actions.state'
 
-      { type = 'text', val = '', opts = { hl = 'AlphaButtons', position = 'center' } },
+                builtin.find_files {
+                    prompt_title = 'Remove File',
+                    attach_mappings = function(prompt_bufnr, map)
+                        actions.select_default:replace(function()
+                            local selection = action_state.get_selected_entry()
+                            if selection then
+                                local file_path = selection.path or selection.value
+                                actions.close(prompt_bufnr)
+                                vim.ui.select({ 'Yes', 'No' }, {
+                                    prompt = 'Delete ' .. file_path .. '?',
+                                }, function(choice)
+                                    if choice == 'Yes' then
+                                        local success = os.remove(file_path)
+                                        if success then
+                                            print('Removed: ' .. file_path)
+                                            local buf = vim.fn.bufnr(file_path)
+                                            if buf ~= -1 then
+                                                vim.cmd('bdelete! ' .. buf)
+                                            end
+                                        else
+                                            print('Failed to remove: ' .. file_path)
+                                        end
+                                    end
+                                end)
+                            end
+                        end)
+                        return true
+                    end,
+                }
+            end
+        end
 
-      create_button('q', '󰅚', '> Quit NVIM', '<cmd>qa<CR>', 'AlphaButtonSystem'),
-    }
+        dashboard.section.buttons.val = {
+            create_button('SPC s c', '󰈚', '> Create File', 'AlphaButtonFile', create_file_command()),
+            create_button('SPC s r', '󰅖', '> Remove File', 'AlphaButtonFile', remove_file_command()),
 
-    local header_padding = math.max(2, math.floor(vim.fn.winheight(0) * 0.15))
-    local section_padding = 2
+            { type = 'text', val = '', opts = { hl = 'AlphaButtons', position = 'center' } },
 
-    dashboard.config.layout = {
-      { type = 'padding', val = header_padding },
-      dashboard.section.header,
-      { type = 'padding', val = section_padding },
-      dashboard.section.buttons,
-    }
+            create_button('SPC s f', '󰈞', '> Find File', 'AlphaButtonSearch', '<cmd>Telescope find_files<CR>'),
+            create_button('SPC s g', '󰊄', '> Find Word', 'AlphaButtonSearch', '<cmd>Telescope live_grep<CR>'),
 
-    dashboard.section.header.opts.hl = 'AlphaHeader'
-    dashboard.section.buttons.opts.hl = 'AlphaButtons'
+            { type = 'text', val = '', opts = { hl = 'AlphaButtons', position = 'center' } },
 
-    dashboard.opts.opts = {
-      noautocmd = true,
-      margin = 5,
-    }
+            create_button('q', '󰅚', '> Quit NVIM', 'AlphaButtonSystem', '<cmd>quit<CR>'),
+        }
 
-    -- Store original cursor and options
-    local original_guicursor = vim.opt.guicursor:get()
-    local original_cursorline = vim.opt.cursorline:get()
-    local original_cursorcolumn = vim.opt.cursorcolumn:get()
+        local header_padding = math.max(2, math.floor(vim.fn.winheight(0) * 0.15))
+        local section_padding = 2
 
-    vim.api.nvim_create_autocmd('User', {
-      pattern = 'AlphaReady',
-      callback = function()
-        -- Hide cursor completely
-        vim.opt.guicursor = 'a:block-Cursor/lCursor-blinkwait0-blinkon0-blinkoff0'
-        vim.opt.cursorline = false
-        vim.opt.cursorcolumn = false
+        dashboard.config.layout = {
+            { type = 'padding', val = header_padding },
+            dashboard.section.header,
+            { type = 'padding', val = section_padding },
+            dashboard.section.buttons,
+        }
 
-        -- Make buffer non-interactive
-        vim.bo.modifiable = false
-        vim.bo.readonly = true
+        dashboard.section.header.opts.hl = 'AlphaHeader'
+        dashboard.section.buttons.opts.hl = 'AlphaButtons'
 
-        -- Hide cursor highlight
-        vim.cmd [[
-          hi Cursor blend=100
-          hi lCursor blend=100
-          hi CursorLine guibg=NONE
-          hi CursorColumn guibg=NONE
-        ]]
+        dashboard.opts.opts = {
+            noautocmd = true,
+            margin = 5,
+        }
 
-        -- Set up color scheme
-        vim.cmd [[
+        -- Store original cursor and options
+        local original_guicursor = vim.opt.guicursor:get()
+        local original_cursorline = vim.opt.cursorline:get()
+        local original_cursorcolumn = vim.opt.cursorcolumn:get()
+
+        vim.api.nvim_create_autocmd('User', {
+            pattern = 'AlphaReady',
+            callback = function()
+                -- Don't make buffer readonly - allow normal keymaps to work
+                vim.bo.modifiable = true
+                vim.bo.readonly = false
+
+                -- Set up color scheme
+                vim.cmd [[
           " Main header - bright blue
           hi AlphaHeader guifg=#7aa2f7 gui=bold
-          
+
           " Individual function colors
           hi AlphaButtonFile guifg=#f7768e gui=bold           " Pink for file creation
           hi AlphaButtonFileWarn guifg=#ff9e64 gui=bold       " Orange for file removal (warning)
           hi AlphaButtonSearch guifg=#9ece6a gui=bold         " Green for search functions
           hi AlphaButtonSystem guifg=#e0af68 gui=bold         " Yellow for system functions
-          
+
           " Default button color (fallback)
           hi AlphaButtons guifg=#bb9af7
         ]]
-      end,
-    })
+            end,
+        })
 
-    -- Restore cursor when leaving Alpha
-    vim.api.nvim_create_autocmd('User', {
-      pattern = 'AlphaClosed',
-      callback = function()
-        vim.opt.guicursor = original_guicursor
-        vim.opt.cursorline = original_cursorline
-        vim.opt.cursorcolumn = original_cursorcolumn
-
-        -- Restore cursor highlight
-        vim.cmd [[
-          hi Cursor blend=0
-          hi lCursor blend=0
-        ]]
-      end,
-    })
-
-    -- Additional autocmd to handle leaving alpha buffer
-    vim.api.nvim_create_autocmd('BufLeave', {
-      pattern = '*',
-      callback = function()
-        if vim.bo.filetype == 'alpha' then
-          vim.opt.guicursor = original_guicursor
-          vim.opt.cursorline = original_cursorline
-          vim.opt.cursorcolumn = original_cursorcolumn
-
-          vim.cmd [[
-            hi Cursor blend=0
-            hi lCursor blend=0
-          ]]
-        end
-      end,
-    })
-
-    alpha.setup(dashboard.opts)
-  end,
+        alpha.setup(dashboard.opts)
+    end,
 }
