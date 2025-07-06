@@ -25,19 +25,7 @@ return {
       },
     }
 
-    function _set_terminal_keymaps()
-      local opts = { buffer = 0 }
-
-      vim.keymap.set('t', '<ESC>', '<C-\\><C-n>', opts)
-
-      vim.keymap.set('t', '<ESC>', '<C-c>', opts)
-    end
-
-    vim.api.nvim_create_autocmd('TermOpen', {
-      pattern = '*',
-      callback = _set_terminal_keymaps,
-    })
-
+    -- Lazygit integration
     local Terminal = require('toggleterm.terminal').Terminal
     local lazygit = Terminal:new {
       cmd = 'lazygit',
@@ -46,15 +34,16 @@ return {
       float_opts = {
         border = 'double',
       },
-
+      -- function to run on opening the terminal
       on_open = function(term)
         vim.cmd 'startinsert!'
+        -- Normal mode keymaps
         vim.api.nvim_buf_set_keymap(term.bufnr, 'n', 'q', '<cmd>close<CR>', { noremap = true, silent = true })
-
-        vim.api.nvim_buf_set_keymap(term.bufnr, 'n', '<ESC>', '<cmd>close<CR>', { noremap = true, silent = true })
-        vim.api.nvim_buf_set_keymap(term.bufnr, 't', '<ESC>', '<cmd>close<CR>', { noremap = true, silent = true })
+        vim.api.nvim_buf_set_keymap(term.bufnr, 'n', '<C-c>', '<cmd>close<CR>', { noremap = true, silent = true })
+        -- Terminal mode keymaps
+        vim.api.nvim_buf_set_keymap(term.bufnr, 't', '<C-c>', '<C-\\><C-n><cmd>close<CR>', { noremap = true, silent = true })
       end,
-
+      -- function to run on closing the terminal
       on_close = function(term)
         vim.cmd 'startinsert!'
       end,
@@ -64,6 +53,6 @@ return {
       lazygit:toggle()
     end
 
-    vim.api.nvim_set_keymap('n', '<leader>go', '<cmd>lua _lazygit_toggle()<CR>', { noremap = true, silent = true, desc = '[G]it UI [O]pen' })
+    vim.api.nvim_set_keymap('n', '<leader>go', '<cmd>lua _lazygit_toggle()<CR>', { noremap = true, silent = true, desc = '[G]it [O]pen UI' })
   end,
 }
